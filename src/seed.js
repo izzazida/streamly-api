@@ -4,12 +4,19 @@
 
 import "dotenv/config";
 import mongoose from "mongoose";
+import { MongoMemoryServer } from "mongodb-memory-server";
 import { Channel } from "./models/channel.model.js";
 import { Video } from "./models/video.model.js";
 
-const MONGODB_URI = process.env.MONGODB_URI;
+let memoryServer;
 
 try {
+  const MONGODB_URI = process.env.MONGODB_URI || (await (async () => {
+    memoryServer = await MongoMemoryServer.create();
+    return memoryServer.getUri();
+  })());
+
+  process.env.MONGODB_URI = MONGODB_URI;
   await mongoose.connect(MONGODB_URI);
 
   await Channel.deleteMany({});
@@ -30,6 +37,7 @@ try {
   console.log("   Try: GET http://localhost:3001/channels/" + channel._id.toString() + "/top-videos");
 
   await mongoose.disconnect();
+  if (memoryServer) await memoryServer.stop();
   process.exit(0);
 } catch (err) {
   console.error("❌ Seed failed:", err.message);
